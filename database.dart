@@ -7,6 +7,7 @@ class Database {
   var database;
   dynamic spendingToday;
   dynamic spendingMonthly;
+  dynamic incomeMonthly;
 
   databaseHelper() async {
     database = openDatabase(
@@ -26,6 +27,13 @@ class Database {
       'transactions',
       transaction.toMap(),
     );
+  }
+
+  Future<void> updateTransaction(Transactions transaction, int? id) async {
+    databaseHelper();
+    final db = await database;
+    await db.update('transactions', transaction.toMap(),
+        where: 'id = ?', whereArgs: [id]);
   }
 
   Future<List<dynamic>> viewTransactionsToday() async {
@@ -48,8 +56,25 @@ class Database {
   Future<List<dynamic>> viewTransactionsMonthly() async {
     databaseHelper();
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db
-        .rawQuery('SELECT * FROM transactions WHERE month = "$databaseMonth";');
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+        'SELECT * FROM transactions WHERE month = "$selectedMonth" AND year="$selectedYear" AND type="Expense";');
+    return List.generate(maps.length, (i) {
+      return Transactions(
+          id: maps[i]['id'],
+          name: maps[i]['name'],
+          cost: maps[i]['cost'],
+          type: maps[i]['type'],
+          date: maps[i]['date'],
+          month: maps[i]['month'],
+          year: maps[i]['year']);
+    });
+  }
+
+  Future<List<dynamic>> viewTransactionsIncomeMonthly() async {
+    databaseHelper();
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+        'SELECT * FROM transactions WHERE month = "$selectedMonth" AND year="$selectedYear" AND type="Income";');
     return List.generate(maps.length, (i) {
       return Transactions(
           id: maps[i]['id'],
@@ -66,6 +91,16 @@ class Database {
     databaseHelper();
     final db = await database;
     await db.delete(
+      'transactions',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> selectTransaction(int? id) async {
+    databaseHelper();
+    final db = await database;
+    await db.query(
       'transactions',
       where: 'id = ?',
       whereArgs: [id],
@@ -90,5 +125,15 @@ class Database {
         'SELECT SUM(cost) FROM transactions WHERE month="$databaseMonth" AND type="Expense";');
 
     spendingMonthly = await spendingsMonthlyList[0]["SUM(cost)"];
+  }
+
+  Future viewIncomeMonthly() async {
+    databaseHelper();
+    final db = await database;
+
+    List incomeMonthlyList = await db.rawQuery(
+        'SELECT SUM(cost) FROM transactions WHERE month="$databaseMonth" AND type="Income";');
+
+    incomeMonthly = await incomeMonthlyList[0]["SUM(cost)"];
   }
 }
